@@ -12,32 +12,30 @@ function Lobby() {
     fetch('http://localhost:3000/rooms')  // Adjust the URL based on your backend configuration
       .then((response) => response.json())
       .then((data) => {
-        setAvailableRooms(data.rooms || []);  // Set the available rooms from the backend
+        setAvailableRooms(data);  // Set the available rooms from the backend
       })
       .catch((error) => {
         console.error('Error fetching available rooms:', error);
       });
   }, []);
 
+  // Handle joining a room
   const handleJoin = (roomId) => {
-    if (username && roomId) {
+    if (username) {
+      // Navigate to the game page, passing the username and room ID
       navigate(`/game?username=${username}&session_id=${roomId}`);
-    } else {
-        alert('Please enter a username to join a room.')
     }
   };
 
   return (
     <div className="lobby-container">
       <h1>Math Game Lobby</h1>
-      {/* Username Input */}
       <div>
         <label>Username:</label>
         <input
           type="text"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
-          placeholder="Enter your username"
         />
       </div>
       

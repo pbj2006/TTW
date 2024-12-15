@@ -11,9 +11,6 @@ CORS(app, origins=["http://localhost:5173"], supports_credentials=True)
 # Initialize SocketIO with app and enable CORS for SocketIO as well
 socketio = SocketIO(app, cors_allowed_origins=["http://localhost:5173"], async_mode='threading')
 
-# Dictionary to map session ID (request.sid) to username
-usernames = {}
-
 # Database of questions
 QUESTIONS_DB = {
     0: {"question": "What's 5 + 7?", "answer": "12"},
@@ -29,20 +26,17 @@ game_sessions = {}
 # Dictionary to store messages for each room
 room_messages = {}
 
-# Route for getting a list of available rooms
+# Track available rooms
 @app.route('/rooms', methods=['GET'])
-def get_rooms():
-    available_rooms = list(game_sessions.keys())
-    return jsonify(available_rooms)
+def get_available_rooms():
+    # Return the list of active session IDs
+    return jsonify(list(game_sessions.keys()))
 
 # Create a new game session or add a user to an existing one
 @socketio.on('join')
 def handle_join(data):
     username = data['username']
     session_id = data['session_id']
-
-    # Store the username associated with this socket ID
-    usernames[request.sid] = username
     
     # If the session_id does not exist, create a new session
     if session_id not in game_sessions:
@@ -132,31 +126,6 @@ def handle_check_answer(data):
 def send_leaderboard(session_id):
     leaderboard = sorted(game_sessions[session_id]['scores'].items(), key=lambda x: x[1], reverse=True)
     emit('leaderboard', {'leaderboard': leaderboard}, room=session_id)
-
-# Handle user disconnect
-@socketio.on('disconnect')
-def handle_disconnect():
-    # Get the username for this session from the stored usernames using request.sid
-    username = usernames.get(request.sid)
-
-    sessions_to_delete = []
-    for session_id, session in game_sessions.items():
-        # Check if the user is in this session
-        if username in session['users']:
-            session['users'].remove(username)  # Remove user from session
-            session['scores'].pop(username)  # Remove score for user
-            emit('user_left', {'username': username}, room=session_id)
-
-            # If no users are left, remove the session
-            if len(session['users']) == 0:
-                sessions_to_delete.append(session_id)
-
-    for session_id in sessions_to_delete:
-        del game_sessions[session_id]
-        del room_messages[session_id]
-        print(f"Session {session_id} has been deleted due to no users left.")
-    
-    sessions_to_delete = []
 
 if __name__ == '__main__':
     socketio.run(app, port=3000)
