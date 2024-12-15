@@ -26,6 +26,9 @@ game_sessions = {}
 # Dictionary to store messages for each room
 room_messages = {}
 
+# Dictionary to map session ID (request.sid) to username
+usernames = {}
+
 # Track available rooms
 @app.route('/rooms', methods=['GET'])
 def get_available_rooms():
@@ -37,6 +40,9 @@ def get_available_rooms():
 def handle_join(data):
     username = data['username']
     session_id = data['session_id']
+
+    # Store the username associated with this socket ID
+    usernames[request.sid] = username
     
     # If the session_id does not exist, create a new session
     if session_id not in game_sessions:
@@ -126,6 +132,43 @@ def handle_check_answer(data):
 def send_leaderboard(session_id):
     leaderboard = sorted(game_sessions[session_id]['scores'].items(), key=lambda x: x[1], reverse=True)
     emit('leaderboard', {'leaderboard': leaderboard}, room=session_id)
+
+# Handle user disconnection
+@socketio.on('disconnect')
+def handle_disconnect():
+    # Get the username for this session from the stored usernames using request.sid
+    username = usernames.get(request.sid)
+
+    empty_sessions = []
+    user_sessions = []
+    # Find which session the user was in
+    for session_id, session_data in game_sessions.items():
+        if username in session_data['users']:
+            # Remove the user from the session
+            session_data['users'].remove(username)
+            session_data['scores'].pop(username, None)
+            user_sessions.append(session_id)
+
+            # If no users are left in the session, remove the session
+            if len(session_data['users']) == 0:
+                empty_sessions.append(session_id)
+
+    # Optionally, you can emit a message that the user has left
+    for session_id in user_sessions:
+        emit('user_left', {'message': f'{username} has left the game.'}, room=session_id)
+        room_messages[session_id].append({
+            'username': username,
+            'message': f'{username} has left the game.',
+            'timestamp': str(random.randint(1, 100000)),  # Use timestamp or generate random for demo
+        })
+
+    for session_id in empty_sessions:
+        del game_sessions[session_id]
+        del room_messages[session_id]
+
+    # Remove the username from the stored session mapping
+    if request.sid in usernames:
+        del usernames[request.sid]
 
 if __name__ == '__main__':
     socketio.run(app, port=3000)

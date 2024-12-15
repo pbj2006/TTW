@@ -50,6 +50,13 @@ function Game() {
       }
     });
 
+    socket.current.on('user_left', (data) => {
+      setMessages((prevMessages) => [
+        ...prevMessages,
+        { message: data.message},
+      ]);
+    })
+
     socket.current.on('leaderboard', (data) => {
       setLeaderboard(data.leaderboard);
     });
