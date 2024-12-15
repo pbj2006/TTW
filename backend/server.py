@@ -50,7 +50,8 @@ def handle_join(data):
             'users': [],
             'used_questions': set(),  # Track used questions in the session
             'scores': {},  # Track player scores
-            'messages': []
+            'messages': [],
+            'current_question': None
         }
         room_messages[session_id] = []  # Initialize empty message history for the new session
     
@@ -58,16 +59,18 @@ def handle_join(data):
     game_sessions[session_id]['users'].append(username)
     game_sessions[session_id]['scores'][username] = 0  # Starting score is 0
     join_room(session_id)  # Join the user to the session room
+
     emit('joined', {'message': f'Welcome {username}! You are now in session {session_id}.'}, room=session_id)
-
-    # Send all past messages to the new user
     emit('room_messages', {'messages': room_messages[session_id]}, room=session_id)
-
-    # Send the updated leaderboard to all users in the room
     send_leaderboard(session_id)
 
-    # Send a random question to the user
-    send_random_question(session_id)
+    # Send the current question to the new user if one exists
+    current_question = game_sessions[session_id]['current_question']
+    if current_question:
+        emit('question', current_question, to=request.sid)
+    else:
+        # If no question exists, generate a new one
+        send_random_question(session_id)
 
 # Function to send a random question from QUESTIONS_DB
 def send_random_question(session_id):
@@ -78,6 +81,11 @@ def send_random_question(session_id):
         # Choose a random question
         random_question_id = random.choice(available_questions)
         random_question_text = QUESTIONS_DB[random_question_id]['question']
+
+        game_sessions[session_id]['current_question'] = {
+            'question_id': random_question_id,
+            'question_text': random_question_text
+        }
         
         # Mark this question as used
         game_sessions[session_id]['used_questions'].add(random_question_id)
@@ -103,6 +111,7 @@ def handle_check_answer(data):
         # Correct answer: add 100 points
         game_sessions[session_id]['scores'][username] += 100
         result_status = 'correct'
+        send_random_question(session_id)
     else:
         # Incorrect answer: subtract 50 points
         game_sessions[session_id]['scores'][username] -= 50
@@ -125,8 +134,6 @@ def handle_check_answer(data):
     # Send updated leaderboard
     send_leaderboard(session_id)
 
-    # Send new question to all users in the session
-    send_random_question(session_id)
 
 # Function to send the updated leaderboard
 def send_leaderboard(session_id):

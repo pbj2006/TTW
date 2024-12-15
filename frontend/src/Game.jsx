@@ -37,15 +37,15 @@ function Game() {
     });
 
     socket.current.on('answer_result', (data) => {
-      if (data.username !== username && data.status === "correct") {
+      if (data.username !== username) {
         setMessages((prevMessages) => [
           ...prevMessages,
-          { username: data.username, message: `${data.username} got the answer correct!` },
+          { username: data.username, message: `${data.username} got the answer ${data.status}.` },
         ]);
       } else if (data.username === username) {
         setMessages((prevMessages) => [
           ...prevMessages,
-          { username: data.username, message: `Your answer is ${data.status}` },
+          { username: data.username, message: `Your answer is ${data.status}.` },
         ]);
       }
     });
