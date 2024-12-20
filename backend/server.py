@@ -65,6 +65,14 @@ def handle_join(data):
         game_sessions[session_id]['scores'][username] = 0  # Starting score is 0
         join_room(session_id)  # Join the user to the session room
 
+        # Add a "user joined" message to the room messages
+        join_message = f'{username} has joined the game!'
+        room_messages[session_id].append({
+            'username': None,
+            'message': join_message,
+            'timestamp': str(random.randint(1, 100000)),  # Use a timestamp or generate a random value for demo
+        })
+
         emit('joined', {'message': f'Welcome {username}! You are now in session {session_id}.'}, room=session_id)
         emit('room_messages', {'messages': room_messages[session_id]}, room=session_id)
         send_leaderboard(session_id)
@@ -185,6 +193,23 @@ def handle_disconnect():
     # Remove the username from the stored session mapping
     if request.sid in usernames:
         del usernames[request.sid]
+
+@socketio.on('send_message')
+def handle_send_message(data):
+    session_id = data['session_id']
+    username = data['username']
+    message = data['message']
+
+    if session_id in room_messages:
+        # Save the message in the session's message history
+        room_messages[session_id].append({
+            'username': username,
+            'message': message,
+            'timestamp': str(random.randint(1, 100000)),  # Add a timestamp or use a real timestamp for production
+        })
+
+        # Emit the message to all users in the session
+        emit('room_messages', {'messages': room_messages[session_id]}, room=session_id)
 
 if __name__ == '__main__':
     socketio.run(app, port=3000)

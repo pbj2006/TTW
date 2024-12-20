@@ -3,6 +3,7 @@ import { io } from 'socket.io-client';
 
 function Game() {
   const [text, setText] = useState("");
+  const [chatMessage, setChatMessage] = useState(""); 
   const [question, setQuestion] = useState(null);
   const [questionId, setQuestionId] = useState(null);
   const [questionNum, setQuestionNum] = useState(null);
@@ -57,9 +58,9 @@ function Game() {
     socket.current.on('user_left', (data) => {
       setMessages((prevMessages) => [
         ...prevMessages,
-        { message: data.message},
+        { message: data.message },
       ]);
-    })
+    });
 
     socket.current.on('leaderboard', (data) => {
       setLeaderboard(data.leaderboard);
@@ -71,7 +72,7 @@ function Game() {
 
     socket.current.on('game_end', (data) => {
       setQuestion(data.message);
-    })
+    });
 
     return () => {
       if (socket.current) {
@@ -80,11 +81,32 @@ function Game() {
     };
   }, []);
 
-  const handleSubmitAnswer = (answer) => {
-    if (questionId !== null) {
-      socket.current.emit('check_answer', { session_id: sessionId, username: username, question_id: questionId, answer });
+  const handleSubmitAnswer = () => {
+    if (questionId !== null && text.trim() !== "") {
+      socket.current.emit('check_answer', { session_id: sessionId, username: username, question_id: questionId, answer: text });
+      setText(""); // Clear the input field after submitting
     }
   };
+
+  const handleSendMessage = () => {
+    if (chatMessage.trim() !== "") {
+      socket.current.emit('send_message', { session_id: sessionId, username: username, message: chatMessage });
+      setChatMessage(""); // Clear the chat input field
+    }
+  };
+
+  const handleKeyDown = (event) => {
+    if (event.key === 'Enter') {
+      handleSubmitAnswer(); // Submit the answer when the Enter key is pressed
+    }
+  };
+
+  const handleKeyDownChat = (event) => {
+    if (event.key === 'Enter') {
+      handleSendMessage(); // Send the chat message when the Enter key is pressed
+    }
+  };
+
 
   return (
     <>
@@ -98,10 +120,11 @@ function Game() {
               type="text"
               placeholder="Enter your answer here"
               onChange={(e) => setText(e.target.value)}
+              onKeyDown={handleKeyDown} // Add keydown listener
               value={text}
               style={{ padding: '10px', fontSize: '16px', width: '300px', marginRight: '10px' }}
             />
-            <button onClick={() => handleSubmitAnswer(text)} style={{ padding: '10px 20px', fontSize: '16px' }}>
+            <button onClick={handleSubmitAnswer} style={{ padding: '10px 20px', fontSize: '16px' }}>
               Submit Answer
             </button>
           </div>
@@ -118,15 +141,34 @@ function Game() {
 
         <div style={{ width: '100%', marginTop: '20px' }}>
           <h2>Messages</h2>
-          {messages.length > 0 ? (
-            messages.slice(-10).map((msg, index) => (
-              <div key={index}>
-                <strong>{msg.username}</strong>: {msg.message}
-              </div>
-            ))
-          ) : (
-            <p>No messages yet.</p>
-          )}
+          <div style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid #ccc', padding: '10px', marginBottom: '10px' }}>
+            {messages.length > 0 ? (
+              messages.slice(-10).map((msg, index) => (
+                <div key={index}>
+                    {msg.username ? (
+                    <>
+                        <strong>{msg.username}</strong>: {msg.message}
+                    </>
+                    ) : (
+                    <>{msg.message}</>
+                    )}
+                </div>
+              ))
+            ) : (
+              <p>No messages yet.</p>
+            )}
+          </div>
+          <input
+            type="text"
+            placeholder="Type a message..."
+            value={chatMessage}
+            onChange={(e) => setChatMessage(e.target.value)}
+            onKeyDown={handleKeyDownChat} // Add keydown listener for chat
+            style={{ padding: '10px', fontSize: '16px', width: '300px', marginRight: '10px' }}
+          />
+          <button onClick={handleSendMessage} style={{ padding: '10px 20px', fontSize: '16px' }}>
+            Send
+          </button>
         </div>
       </div>
     </>
