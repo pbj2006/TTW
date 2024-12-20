@@ -5,6 +5,8 @@ function Game() {
   const [text, setText] = useState("");
   const [question, setQuestion] = useState(null);
   const [questionId, setQuestionId] = useState(null);
+  const [questionNum, setQuestionNum] = useState(null);
+  const [questionTotalNum, setQuestionTotalNum] = useState(null);
   const [leaderboard, setLeaderboard] = useState([]);
   const [messages, setMessages] = useState([]);
   const [username, setUsername] = useState("");
@@ -34,6 +36,8 @@ function Game() {
     socket.current.on('question', (data) => {
       setQuestion(data.question_text);
       setQuestionId(data.question_id);
+      setQuestionNum(data.current_question_num);
+      setQuestionTotalNum(data.question_total_num);
     });
 
     socket.current.on('answer_result', (data) => {
@@ -65,6 +69,10 @@ function Game() {
       setMessages(data.messages);
     });
 
+    socket.current.on('game_end', (data) => {
+      setQuestion(data.message);
+    })
+
     return () => {
       if (socket.current) {
         socket.current.disconnect();
@@ -82,8 +90,8 @@ function Game() {
     <>
       <div style={{ display: 'flex', flexDirection: 'column', padding: '20px', alignItems: 'center' }}>
         <div style={{ width: '100%', marginBottom: '20px' }}>
-          <h1>Problem:</h1>
-          <p>Solve this equation: <strong>{question || 'Loading question...'}</strong></p>
+          <h1>Problem {questionNum} of {questionTotalNum}:</h1>
+          <p><strong>{question || 'Loading question...'}</strong></p>
 
           <div>
             <input
@@ -111,7 +119,7 @@ function Game() {
         <div style={{ width: '100%', marginTop: '20px' }}>
           <h2>Messages</h2>
           {messages.length > 0 ? (
-            messages.map((msg, index) => (
+            messages.slice(-10).map((msg, index) => (
               <div key={index}>
                 <strong>{msg.username}</strong>: {msg.message}
               </div>
